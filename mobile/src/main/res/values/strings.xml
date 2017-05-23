@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">MiBand</string>
+    <string name="waiting_text">Click when you done :)</string>
+    <string name="ip">http://192.168.0.105:3000</string>
+    <string name="IPbutton">IP</string>
+    <string name="interaction1">Interaction-1</string>
+    <string name="interaction2">Interaction-2</string>
+    <string name="interaction3">Interaction-3</string>
+    <string name="interaction4">Interaction-4</string>
+</resources>
+

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.example.simon.androidweardatalayer.MainActivity"
+    tools:deviceIds="wear">
+
+    <LinearLayout
+        android:id="@+id/mainContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#efefef">
+
+        <TextView
+            android:id="@+id/result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:padding="10dp"
+            android:textAlignment="center"
+            android:textSize="14sp"
+            android:text="@string/app_name"
+            android:background="@color/color_blue_dark"
+            android:textColor="@color/text_light" />
+
+
+        <Button
+            android:id="@+id/apiButton"
+            android:text="@string/button_text"
+            android:layout_centerHorizontal="true"
+            android:layout_width="wrap_content"
+            android:textAlignment="center"
+            android:drawableLeft="@drawable/ic_cloud"
+            android:drawablePadding="7dp"
+            android:layout_gravity="center"
+            android:layout_height="wrap_content"/>
+
+        <LinearLayout
+            android:id="@+id/apiContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/accelerometer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#333"
+                android:textAlignment="center"/>
+
+            <TextView
+                android:id="@+id/gyroscope"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#333"
+                android:textAlignment="center"/>
+
+
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>
