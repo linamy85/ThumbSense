@@ -25,12 +25,15 @@ import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.MessageEvent;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
 
 //Mobile Profile
 public class MainActivity extends AppCompatActivity implements
@@ -43,7 +46,7 @@ public class MainActivity extends AppCompatActivity implements
     private GoogleApiClient googleClient;
     private TextView messageContainer;
 
-    private String IP = "192.168.0.104";
+    private String IP = "192.168.1.104";
     private int PORT = 3000;
 
     private boolean onAction;
@@ -53,16 +56,16 @@ public class MainActivity extends AppCompatActivity implements
     private RelativeLayout mainContainer;
     private TextView ipView;
 
-    private static final int INTEGER = Integer.SIZE / 8;
     private static final int FLOAT = Float.SIZE / 8;
     private static final int LONG = Long.SIZE / 8;
-    private static final int DATASIZE = INTEGER * 1 + FLOAT * 3 + LONG * 1;
+    private static final int DATASIZE = FLOAT * 3 + LONG * 1;
 
     private String nodeId;
 
 
     // All buttons onClick function.
     public void defineAction(View view) {
+        sendMessage("/start");
         action = ((Button)view).getText().toString();
         Log.v(TAG, "Define action " + action);
         onAction = true;
@@ -73,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements
 
     // Triggered when overlay is clicked.
     public void endAction(View view) {
+        sendMessage("/end");
         overlay.setVisibility(View.INVISIBLE);
         mainContainer.bringToFront();
         Log.v(TAG, "Action " + action + " ends.");
@@ -125,6 +129,22 @@ public class MainActivity extends AppCompatActivity implements
         mainContainer = (RelativeLayout) findViewById(R.id.mainContainer);
         ipView = (TextView) findViewById(R.id.ip);
         ipView.setText(IP + ":" + PORT);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                googleClient.blockingConnect(1000, TimeUnit.MILLISECONDS);
+                NodeApi.GetConnectedNodesResult result =
+                        Wearable.NodeApi.getConnectedNodes(googleClient).await();
+                for (Node node: result.getNodes()) {
+                    Log.w(TAG, "Get node " + nodeId);
+                    if (node.isNearby()) {
+                        Log.w(TAG, "Nearby node name: " + node.getDisplayName());
+                        nodeId = node.getId();
+                    }
+                }
+            }
+        }).start();
 
         Log.v(TAG, "Mobile on create");
         setIPDialog(null);
@@ -204,13 +224,13 @@ public class MainActivity extends AppCompatActivity implements
             if (!onAction) {
                 return;
             }
-            nodeId = event.getSourceNodeId();
             String url = event.getPath();
-            if (!url.equalsIgnoreCase("/raw")) {
+            if (!url.startsWith("/raw")) {
                 Log.v(TAG, "Received weird URL:" + url);
                 return;
             }
 
+            int type = Integer.parseInt(url.split("/")[2]);
 //            ByteBuffer data = ByteBuffer.wrap(event.getData())
 //            String type = data[2];
 //            String time = data[3];
@@ -228,16 +248,37 @@ public class MainActivity extends AppCompatActivity implements
                 //EXECUTE ASYNC TASK
 //                APIAsyncTask asyncTask = new APIAsyncTask();
 //                asyncTask.execute(apiInformation);
-            SocketAsyncTask task = new SocketAsyncTask();
+
+            SocketAsyncTask task = new SocketAsyncTask(type);
             //task.execute(event.getData());
 
             // By this, we can get thread in pool to work for us.
             task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, event.getData());
         }
 
+    private void sendMessage(final String url) {
+        PendingResult<MessageApi.SendMessageResult> result =
+                Wearable.MessageApi.sendMessage(googleClient, nodeId, url, null);
+        result.setResultCallback(new ResultCallback<MessageApi.SendMessageResult>() {
+            @Override
+            public void onResult(@NonNull MessageApi.SendMessageResult sendMessageResult) {
+                if (sendMessageResult.getStatus().isSuccess()) {
+                    Log.v(TAG, "Successfully send message API to " + url);
+                } else {
+                    Log.v(TAG, "Send messageAPI to " + url + " : " + sendMessageResult.getStatus().toString());
+                }
+            }
+        });
+    }
+
     public class SocketAsyncTask extends AsyncTask<byte[], String, Exception> {
         Socket socket;
         DataOutputStream out;
+        int sensorType;
+
+        public SocketAsyncTask(int sensor_type) {
+            sensorType = sensor_type;
+        }
 
         protected void onPreExecute() {
             super.onPreExecute();
@@ -249,7 +290,7 @@ public class MainActivity extends AppCompatActivity implements
                 socket = new Socket(IP, PORT);
                 out = new DataOutputStream(socket.getOutputStream());
                 out.writeInt(actionTag);
-
+                out.writeInt(sensorType);
                 out.writeInt(data[0].length / DATASIZE);
                 out.write(data[0]);
                 out.close();
@@ -311,7 +352,7 @@ public class MainActivity extends AppCompatActivity implements
         protected void onPostExecute(HashMap result) {
             super.onPostExecute(result);
 
-            Wearable.MessageApi.sendMessage(googleClient, nodeId, "/analysis/success", null);
+            Wearable.MessageApi.sendMessage(googleClient, nodeId, "/ok", null);
 //            //build our message back to the wearable (either with data or a failure message)
 //            PutDataMapRequest putDataMapRequest = PutDataMapRequest.create("/analysis");
 //            putDataMapRequest.getDataMap().putString("result", (String) result.get("type"));

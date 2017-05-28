@@ -63,4 +63,25 @@
         </LinearLayout>
     </LinearLayout>
 
+    <RelativeLayout
+        android:id="@+id/overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/on_action_bright"
+        android:visibility="invisible">
+
+        <TextView
+            android:id="@+id/progressMessage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:layout_centerHorizontal="true"
+            android:text="@string/start_msg"/>
+
+    </RelativeLayout>
+
+
 </RelativeLayout>

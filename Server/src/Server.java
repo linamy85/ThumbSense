@@ -75,23 +75,22 @@ public class Server {
 
             // Creates buffer
             final int COUNT = 32;
-            final int INTEGER = Integer.SIZE / 8;
             final int FLOAT = Float.SIZE / 8;
             final int LONG = Long.SIZE / 8;
 
             // The first INTEGER indicates the length of buffer size.
-            final int oneBuffer = (INTEGER * 1 + LONG * 1 + FLOAT * 3 ) * COUNT;
+            final int oneBuffer = (LONG * 1 + FLOAT * 3 ) * COUNT;
 //            byte[] bytes = new byte[oneBuffer];
-            int count;
-            int type;
+            int count, sensor, type;
 
             try {
                 type = in.readInt();
+                sensor = in.readInt();
                 count = in.readInt();
                 System.out.printf("Type %d with %d data unit.\n", type, count);
                 String ans = new String();
                 for (int i = 0; i < count; i++) {
-                    ans += String.format("%d,%d,%d,%f,%f,%f (%d)\n", type, in.readInt(), in.readLong(),
+                    ans += String.format("%d,%d,%d,%f,%f,%f (%d)\n", type, sensor, in.readLong(),
                             in.readFloat(), in.readFloat(), in.readFloat(), (new Date()).getTime());
                 }
                 writer.write(ans);

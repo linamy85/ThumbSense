@@ -7,10 +7,14 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.support.annotation.NonNull;
+
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -53,6 +57,11 @@ public class MainActivity extends Activity implements
     private SyncQueueBuffer AcceleratorBuffer;
     private SyncQueueBuffer GyroBuffer;
 
+    private RelativeLayout overlay;
+    private Vibrator vibrator;
+    private static final long[] vibrationPattern = {5}; // TODO: Test!
+    private boolean onAction = false;
+
     //on successful connection to play services, add data listener
     public void onConnected(Bundle connectionHint) {
         Wearable.MessageApi.addListener(googleClient, this);
@@ -63,12 +72,12 @@ public class MainActivity extends Activity implements
                 NodeApi.GetConnectedNodesResult result =
                         Wearable.NodeApi.getConnectedNodes(googleClient).await();
                 for (Node node: result.getNodes()) {
-                    //Log.w(TAG, "Get node " + nodeId);
                     if (node.isNearby()) {
                         Log.w(TAG, "Nearby node name: " + node.getDisplayName());
                         nodeId = node.getId();
                     }
                 }
+                Log.w(TAG, "Finally connected to node: " + nodeId);
             }
         }).start();
     }
@@ -128,7 +137,10 @@ public class MainActivity extends Activity implements
         sensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        //Log.v(TAG, "on create!");
+        Log.v(TAG, "on create!");
+
+        overlay = (RelativeLayout) findViewById(R.id.overlay);
+        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
     }
 
 
@@ -138,10 +150,31 @@ public class MainActivity extends Activity implements
         nodeId = event.getSourceNodeId();
         String url = event.getPath();
         Log.v(TAG, "Receive: " + url);
-        String result = url.split("/")[2];
 
-        // Passes data only when action on!
-        resultView.setText(result);
+        if (url.equalsIgnoreCase("/ok")) { // TODO: This can be removed to speedup.
+
+        } else if (url.equalsIgnoreCase("/start")) {
+            vibrator.vibrate(vibrationPattern, -1 /* not repeating */);
+            overlay.setVisibility(View.VISIBLE);
+            // TODO: What if vibration affects signals?
+            onAction = true;
+        } else { // Url: /end
+            onAction = false;
+            overlay.setVisibility(View.INVISIBLE);
+
+            // Clears buffer!!
+            byte[] res;
+            if ((res = AcceleratorBuffer.getData(-1)) != null) { // -1 indicates to get all.
+                sendData(accelerometer.getType(), accelerometerView, res);
+            }
+
+            if ((res = GyroBuffer.getData(-1)) != null) { // -1 indicates to get all.
+                sendData(gyroscope.getType(), gyroscopeView, res);
+            }
+        }
+
+        url += " " + ((new Date()).getTime() % 100000);
+        resultView.setText(url);
     }
 
 
@@ -161,32 +194,41 @@ public class MainActivity extends Activity implements
         }
 
         Long time = new Date().getTime();
-        sensorText.setText(event.sensor.getType() + ": " + time.toString());
+
+        // Returns if not recording action!
+        if (!onAction) {
+            return;
+        }
 
         // Puts data into sensor buffer.
-        sensorBuffer.putData(event.sensor.getType(), time, event.values);
+        sensorBuffer.putData(time, event.values);
 
         // Tries to read data out if available.
-        byte[] res = sensorBuffer.getData(THRESHOLD);
-        if (res != null) {
-            //Log.v(TAG, "Sending results! size: " + res.length);
-            PendingResult<MessageApi.SendMessageResult> result =
-                    Wearable.MessageApi.sendMessage(googleClient, nodeId, "/raw", res);
-            result.setResultCallback(new ResultCallback<MessageApi.SendMessageResult>() {
-                @Override
-                public void onResult(@NonNull MessageApi.SendMessageResult sendMessageResult) {
-                    if (sendMessageResult.getStatus().isSuccess()) {
-                        Log.v(TAG, "Successfully send message API.");
-                    } else {
-                        Log.v(TAG, "Send messageAPI " + sendMessageResult.getStatus().toString());
-                    }
-                }
-            });
+        byte[] res;
+        if ((res = sensorBuffer.getData(THRESHOLD)) != null) {
+            sendData(event.sensor.getType(), sensorText, res);
         }
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
+    }
+
+    private void sendData(int type, TextView sensorText, @NonNull byte[] res) {
+        sensorText.setText(type + ": " + (new Date()).toString()); // TODO: test here.
+
+        PendingResult<MessageApi.SendMessageResult> result =
+                Wearable.MessageApi.sendMessage(googleClient, nodeId, "/raw/" + type, res);
+        result.setResultCallback(new ResultCallback<MessageApi.SendMessageResult>() {
+            @Override
+            public void onResult(@NonNull MessageApi.SendMessageResult sendMessageResult) {
+                if (sendMessageResult.getStatus().isSuccess()) {
+                    Log.v(TAG, "Successfully send message API.");
+                } else {
+                    Log.v(TAG, "Send messageAPI " + sendMessageResult.getStatus().toString());
+                }
+            }
+        });
     }
 }
