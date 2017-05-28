@@ -1,4 +1,4 @@
-package com.example.simon.androidweardatalayer;
+package edu.ntu.thumbsense;
 
 import android.util.Log;
 import java.nio.ByteBuffer;

@@ -1,4 +1,4 @@
-package com.example.simon.androidweardatalayer;
+package edu.ntu.thumbsense;
 
 import android.app.Activity;
 import android.app.AlertDialog;

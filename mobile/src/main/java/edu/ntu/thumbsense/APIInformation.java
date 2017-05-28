@@ -1,4 +1,4 @@
-package com.example.simon.androidweardatalayer;
+package edu.ntu.thumbsense;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package com.example.simon.androidweardatalayer;
+package edu.ntu.thumbsense;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
