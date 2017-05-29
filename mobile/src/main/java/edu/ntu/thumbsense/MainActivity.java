@@ -19,6 +19,7 @@ import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
@@ -49,27 +50,25 @@ public class MainActivity extends AppCompatActivity implements
     private String IP = "192.168.1.104";
     private int PORT = 3000;
 
-    private boolean onAction;
-    private String action;
-    private int actionTag;
     private RelativeLayout overlay;
+    private RelativeLayout endingOverlay;
     private RelativeLayout mainContainer;
     private TextView ipView;
 
     private static final int FLOAT = Float.SIZE / 8;
     private static final int LONG = Long.SIZE / 8;
-    private static final int DATASIZE = FLOAT * 3 + LONG * 1;
+    private static final int DATASIZE = FLOAT * 3 + LONG;
 
     private String nodeId;
 
+    private ActionList actionList;
+    private static final int MaxTrialPerAction = 3;
+
 
     // All buttons onClick function.
-    public void defineAction(View view) {
+    public void startAction(View view) {
         sendMessage("/start");
-        action = ((Button)view).getText().toString();
-        Log.v(TAG, "Define action " + action);
-        onAction = true;
-        actionTag = Integer.parseInt((String) view.getTag());
+        Log.v(TAG, "Define action " + actionList.getAction());
         overlay.setVisibility(View.VISIBLE);
         overlay.bringToFront();
     }
@@ -79,28 +78,45 @@ public class MainActivity extends AppCompatActivity implements
         sendMessage("/end");
         overlay.setVisibility(View.INVISIBLE);
         mainContainer.bringToFront();
-        Log.v(TAG, "Action " + action + " ends.");
-        onAction = false;
+        Log.v(TAG, "Action " + actionList.getAction() + " ends.");
+        if (!actionList.checkAndNext()) {
+            endingOverlay.setVisibility(View.VISIBLE);
+            endingOverlay.bringToFront();
+            Log.v(TAG, "All actions done.");
+        }
     }
+
+    // Resets after all trials done.
+    public void resetActions(View view) {
+        endingOverlay.setVisibility(View.INVISIBLE);
+        mainContainer.bringToFront();
+        actionList.reset();
+    }
+
+    // --------------- Activity & Play services methods ------------- //
 
     //on successful connection to play services, add data listener
     public void onConnected(Bundle connectionHint) {
+        messageContainer.setText("Play connected.");
         Wearable.MessageApi.addListener(googleClient, this);
     }
 
     //on resuming activity, reconnect play services
     public void onResume(){
+        messageContainer.setText("Activity resumed.");
         super.onResume();
         googleClient.connect();
     }
 
     //on suspended connection, remove play services
     public void onConnectionSuspended(int cause) {
+        messageContainer.setText("Connection suspended.");
         Wearable.MessageApi.removeListener(googleClient, this);
     }
 
     //pause listener, disconnect play services
     public void onPause(){
+        messageContainer.setText("Play paused.");
         super.onPause();
         Wearable.MessageApi.removeListener(googleClient, this);
         googleClient.disconnect();
@@ -108,6 +124,7 @@ public class MainActivity extends AppCompatActivity implements
 
     //On failed connection to play services, remove the data listener
     public void onConnectionFailed(ConnectionResult result) {
+        messageContainer.setText("Connection failed.");
     }
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,8 +132,8 @@ public class MainActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_main);
         this.activity = this;
 
-        onAction = false;
         overlay = (RelativeLayout) findViewById(R.id.overlay);
+        endingOverlay = (RelativeLayout) findViewById(R.id.endingOverlay);
 
         //data layer
         googleClient = new GoogleApiClient.Builder(this)
@@ -129,6 +146,8 @@ public class MainActivity extends AppCompatActivity implements
         mainContainer = (RelativeLayout) findViewById(R.id.mainContainer);
         ipView = (TextView) findViewById(R.id.ip);
         ipView.setText(IP + ":" + PORT);
+
+        actionList = new ActionList();
 
         new Thread(new Runnable() {
             @Override
@@ -148,6 +167,8 @@ public class MainActivity extends AppCompatActivity implements
 
         Log.v(TAG, "Mobile on create");
         setIPDialog(null);
+
+        messageContainer.setText(isOnline() ? "Network connected." : "Network disconnected.");
     }
 
 
@@ -165,29 +186,8 @@ public class MainActivity extends AppCompatActivity implements
         return connected;
     }
 
-    //populates information for our API
-    protected APIInformation setUpAPIInformation(String type, String time, String[] values){
-
-        APIInformation apiInformation = new APIInformation();
-
-        apiInformation.setAPIEndpoint(IP + PORT);
-        HashMap arguments = new HashMap<String, String>();
-
-        arguments.put("act", action);
-        arguments.put("type", type);
-        arguments.put("time", time);
-        arguments.put("x", values[0]);
-        arguments.put("y", values[1]);
-        arguments.put("z", values[2]);
-
-        apiInformation.setAPIArguments(arguments);
-        apiInformation.setAPIUrl();
-
-        return apiInformation;
-    }
-
     // Sets IP dialog.
-    private void setIPDialog(View view) {
+    public void setIPDialog(View view) {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
         final EditText edittext = new EditText(this);
 
@@ -221,9 +221,7 @@ public class MainActivity extends AppCompatActivity implements
         @Override
         public void onMessageReceived(MessageEvent event) {
             Log.v(TAG, "Received " + event.getPath());
-            if (!onAction) {
-                return;
-            }
+
             String url = event.getPath();
             if (!url.startsWith("/raw")) {
                 Log.v(TAG, "Received weird URL:" + url);
@@ -231,27 +229,10 @@ public class MainActivity extends AppCompatActivity implements
             }
 
             int type = Integer.parseInt(url.split("/")[2]);
-//            ByteBuffer data = ByteBuffer.wrap(event.getData())
-//            String type = data[2];
-//            String time = data[3];
-//            //Log.v(TAG, type + ";time: " + time);
-//            String values[] = {data[4], data[5], data[6]};
-
-//            messageContainer.setText(type + ": " + time);
-
-            // Passes data only when action on!
-                //Log.v(TAG, "Sending action " + type + " : " + time);
-                //BUILD API ARGUMENTS
-                //populate our API information, in preparation for our API call
-//                APIInformation apiInformation = setUpAPIInformation(type, time, values);
-
-                //EXECUTE ASYNC TASK
-//                APIAsyncTask asyncTask = new APIAsyncTask();
-//                asyncTask.execute(apiInformation);
 
             SocketAsyncTask task = new SocketAsyncTask(type);
-            //task.execute(event.getData());
 
+            //task.execute(event.getData());
             // By this, we can get thread in pool to work for us.
             task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, event.getData());
         }
@@ -289,7 +270,8 @@ public class MainActivity extends AppCompatActivity implements
             try {
                 socket = new Socket(IP, PORT);
                 out = new DataOutputStream(socket.getOutputStream());
-                out.writeInt(actionTag);
+                out.writeInt(actionList.getID());
+                out.writeInt(actionList.count);
                 out.writeInt(sensorType);
                 out.writeInt(data[0].length / DATASIZE);
                 out.write(data[0]);
@@ -312,56 +294,64 @@ public class MainActivity extends AppCompatActivity implements
     }
 
 
-    //main async task to connect to our API and collect a response
-    public class APIAsyncTask extends AsyncTask<APIInformation, String, HashMap> {
+    private class ActionList {
+        String[] actions;
+        int cur;
+        int count;
+        TextView previousAction, currentAction, nextAction;
+        Button startButton;
 
-        //execute before we start
-        protected void onPreExecute() {
-            super.onPreExecute();
+        private ActionList() {
+            actions = getResources().getStringArray(R.array.interactions);
+            cur = 0;
+            count = 1;
+
+            previousAction = (TextView) findViewById(R.id.previousAction);
+            currentAction = (TextView) findViewById(R.id.currentAction);
+            nextAction = (TextView) findViewById(R.id.nextAction);
+
+            startButton = (Button) findViewById(R.id.start);
+            startButton.setText("Action! #" + count);
+
+            updateWorking();
         }
 
-        //execute background task
-        protected HashMap doInBackground(APIInformation... params) {
+        private int updateWorking() {
+            previousAction.setText((cur == 0) ? "---" : actions[cur - 1]);
+            currentAction.setText(actions[cur]);
+            nextAction.setText((cur == (actions.length - 1)) ? "---" : actions[cur + 1]);
 
-            APIInformation apiInformation = params[0];
-            boolean isOnline = isOnline();
-            HashMap result;
+            return cur;
+        }
 
-            if(isOnline){
-                //perform a HTTP request
-                APIUrlConnection apiUrlConnection = new APIUrlConnection();
+        private boolean checkAndNext() {
+            count ++;
+            if (count > MaxTrialPerAction) {
+                cur ++;
+                count = 1;
 
-                //get the result back and process
-                result = apiUrlConnection.GetData(apiInformation.getAPIUrl());
-
-            }else{
-                //we're not online, flag the error
-                result = new HashMap();
-                result.put("type", "failure");
-                result.put("data", "Not currrently online, can't connect to API");
+                Log.v(TAG, "Status: action " + cur + "/" + actions.length + ", index " + count);
+                if (actions.length == cur) {
+                    return false;
+                } else {
+                    updateWorking();
+                }
             }
-            return result;
+            startButton.setText("Action! #" + count);
+            return true;
         }
 
-        //update progress
-        protected void onProgressUpdate(String... values) {
-            super.onProgressUpdate(values);
+        private int getID() {
+            return cur;
         }
 
-        //Execute once we're done
-        protected void onPostExecute(HashMap result) {
-            super.onPostExecute(result);
+        private String getAction() {
+            return actions[cur];
+        }
 
-            Wearable.MessageApi.sendMessage(googleClient, nodeId, "/ok", null);
-//            //build our message back to the wearable (either with data or a failure message)
-//            PutDataMapRequest putDataMapRequest = PutDataMapRequest.create("/analysis");
-//            putDataMapRequest.getDataMap().putString("result", (String) result.get("type"));
-//
-//
-//            //finalise our message and send it off (either success or failure)
-//            PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
-//            putDataRequest.setUrgent();
-//            PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(googleClient, putDataRequest);
+        private void reset() {
+            cur = 0;
+            count = 1;
         }
     }
 

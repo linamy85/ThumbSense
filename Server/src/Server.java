@@ -81,16 +81,17 @@ public class Server {
             // The first INTEGER indicates the length of buffer size.
             final int oneBuffer = (LONG * 1 + FLOAT * 3 ) * COUNT;
 //            byte[] bytes = new byte[oneBuffer];
-            int count, sensor, type;
+            int unitCount, sensor, type, actionIndex;
 
             try {
                 type = in.readInt();
+                actionIndex = in.readInt();
                 sensor = in.readInt();
-                count = in.readInt();
-                System.out.printf("Type %d with %d data unit.\n", type, count);
+                unitCount = in.readInt();
+                System.out.printf("Type %d-%d with %d sensor %d data unit.\n", type, actionIndex, unitCount, sensor);
                 String ans = new String();
-                for (int i = 0; i < count; i++) {
-                    ans += String.format("%d,%d,%d,%f,%f,%f (%d)\n", type, sensor, in.readLong(),
+                for (int i = 0; i < unitCount; i++) {
+                    ans += String.format("%d,%d,%d,%d,%f,%f,%f (%d)\n", type, actionIndex, sensor, in.readLong(),
                             in.readFloat(), in.readFloat(), in.readFloat(), (new Date()).getTime());
                 }
                 writer.write(ans);

@@ -59,7 +59,7 @@ public class MainActivity extends Activity implements
 
     private RelativeLayout overlay;
     private Vibrator vibrator;
-    private static final long[] vibrationPattern = {5}; // TODO: Test!
+    private static final long vibrationPeriod = 100; // TODO: Test!
     private boolean onAction = false;
 
     //on successful connection to play services, add data listener
@@ -154,9 +154,16 @@ public class MainActivity extends Activity implements
         if (url.equalsIgnoreCase("/ok")) { // TODO: This can be removed to speedup.
 
         } else if (url.equalsIgnoreCase("/start")) {
-            vibrator.vibrate(vibrationPattern, -1 /* not repeating */);
-            overlay.setVisibility(View.VISIBLE);
+//            vibrator.vibrate(vibrationPattern, -1 /* not repeating */);
+            vibrator.vibrate(vibrationPeriod);
+
             // TODO: What if vibration affects signals?
+            try {
+                Thread.sleep(vibrationPeriod - 50);
+            } catch(InterruptedException e) {
+                e.printStackTrace();
+            }
+            overlay.setVisibility(View.VISIBLE);
             onAction = true;
         } else { // Url: /end
             onAction = false;
@@ -165,10 +172,12 @@ public class MainActivity extends Activity implements
             // Clears buffer!!
             byte[] res;
             if ((res = AcceleratorBuffer.getData(-1)) != null) { // -1 indicates to get all.
+                Log.v(TAG, "Not passed " + res.length);
                 sendData(accelerometer.getType(), accelerometerView, res);
             }
 
             if ((res = GyroBuffer.getData(-1)) != null) { // -1 indicates to get all.
+                Log.v(TAG, "Not passed " + res.length);
                 sendData(gyroscope.getType(), gyroscopeView, res);
             }
         }
@@ -189,7 +198,7 @@ public class MainActivity extends Activity implements
 
         // If sensor is unreliable, then just return
         if (event.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
-            sensorText.setText("Unreliable now.");
+            sensorText.setText(event.sensor.getStringType() + "Unreliable now.");
             return;
         }
 
@@ -216,7 +225,7 @@ public class MainActivity extends Activity implements
     }
 
     private void sendData(int type, TextView sensorText, @NonNull byte[] res) {
-        sensorText.setText(type + ": " + (new Date()).toString()); // TODO: test here.
+        sensorText.setText(type + ": " + (new Date()).getTime()); // TODO: test here.
 
         PendingResult<MessageApi.SendMessageResult> result =
                 Wearable.MessageApi.sendMessage(googleClient, nodeId, "/raw/" + type, res);
