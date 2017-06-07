@@ -68,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements
     // All buttons onClick function.
     public void startAction(View view) {
         sendMessage("/start");
+        actionList.updateSend();
         Log.v(TAG, "Define action " + actionList.getAction());
         overlay.setVisibility(View.VISIBLE);
         overlay.bringToFront();
@@ -270,8 +271,8 @@ public class MainActivity extends AppCompatActivity implements
             try {
                 socket = new Socket(IP, PORT);
                 out = new DataOutputStream(socket.getOutputStream());
-                out.writeInt(actionList.getID());
-                out.writeInt(actionList.count);
+                out.writeInt(actionList.sendGesture);
+                out.writeInt(actionList.sendCount);
                 out.writeInt(sensorType);
                 out.writeInt(data[0].length / DATASIZE);
                 out.write(data[0]);
@@ -296,15 +297,13 @@ public class MainActivity extends AppCompatActivity implements
 
     private class ActionList {
         String[] actions;
-        int cur;
-        int count;
+        int cur = 0, count = 1;
+        int sendGesture = 0, sendCount = 0;
         TextView previousAction, currentAction, nextAction;
         Button startButton;
 
         private ActionList() {
             actions = getResources().getStringArray(R.array.interactions);
-            cur = 0;
-            count = 1;
 
             previousAction = (TextView) findViewById(R.id.previousAction);
             currentAction = (TextView) findViewById(R.id.currentAction);
@@ -332,17 +331,17 @@ public class MainActivity extends AppCompatActivity implements
 
                 Log.v(TAG, "Status: action " + cur + "/" + actions.length + ", index " + count);
                 if (actions.length == cur) {
+                    reset();
+                    startButton.setText("Action! #" + count);
+                    updateWorking();
                     return false;
                 } else {
                     updateWorking();
                 }
             }
+
             startButton.setText("Action! #" + count);
             return true;
-        }
-
-        private int getID() {
-            return cur;
         }
 
         private String getAction() {
@@ -352,6 +351,13 @@ public class MainActivity extends AppCompatActivity implements
         private void reset() {
             cur = 0;
             count = 1;
+        }
+
+        // Update the data sent only when next action is started,
+        // and avoids sending next round accidentally (if transmission takes long time).
+        private void updateSend() {
+            sendGesture = cur;
+            sendCount = count;
         }
     }
 
