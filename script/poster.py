@@ -38,6 +38,7 @@ if __name__ == '__main__':
         # plt.show()
         plt.xlabel('frame')
         plt.ylabel('magnitude')
+        plt.title('Time domain')
         plt.savefig('gesture_%d_time.png' % i, dpi=1200)
 
         # ------------- Draw FFT graph ------------------- #
@@ -49,5 +50,6 @@ if __name__ == '__main__':
 
         plt.xlabel('Hz')
         plt.ylabel('magnitude')
+        plt.title('Frequency domain')
         plt.savefig('gesture_%d_fft.png' % i, dpi=1200)
 
